@@ -1,4 +1,5 @@
 const { init } = require('../db/init');
+const { ObjectId } = require('mongodb')
 
 class User{
     constructor(name, email, password){
@@ -33,6 +34,19 @@ class User{
                 reject(error);
             }
         })
+    }
+
+    static findById (id) {
+        return new Promise (async (resolve, reject) => {
+            try {
+                const db = await init();
+                let userData = await db.collection('users').find({ _id: ObjectId(id) }).toArray()
+                let user = new User({...userData[0]});
+                resolve (user);
+            } catch (err) {
+                reject('User not found');
+            }
+        });
     }
 }
 
