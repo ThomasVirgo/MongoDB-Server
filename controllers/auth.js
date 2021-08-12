@@ -2,15 +2,45 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models/User')
 
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 router.post('/register', async (req, res) => {
 	try {
-		// const salt = await bcrypt.genSalt();
-		// const hashed = await bcrypt.hash(req.body.password, salt);
-        const {name, email} = req.body;
-		const data = await User.create(name, email);
+        const {name, email, password} = req.body;
+		const salt = await bcrypt.genSalt();
+		const hashed = await bcrypt.hash(password, salt);
+		const data = await User.create(name, email, hashed);
 		res.status(201).json(data);
 	} catch (err) {
 		res.status(500).json(err);
+	}
+});
+
+router.post('/login', async (req, res) => {
+	try {
+		const user = await User.findByEmail(req.body.email);
+		if (!user) {
+			throw new Error('No user with this email');
+		}
+		const authed = await bcrypt.compare(req.body.password, user.password);
+		if (!!authed) {
+			const payload = { email: user.email, name: user.name };
+			const sendToken = (err, token) => {
+				if (err) {
+					throw new Error('Error in token generation');
+				}
+				res.status(200).json({
+					success: true,
+					token,
+				});
+			};
+			jwt.sign(payload, process.env.SECRET, { expiresIn: 18000 }, sendToken);
+		} else {
+			throw new Error('User could not be authenticated');
+		}
+	} catch (err) {
+		res.status(401).json({ err });
 	}
 });
 
